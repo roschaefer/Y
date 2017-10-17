@@ -1,11 +1,6 @@
-// node tests.js
+// An important principle is not to invoke tests manually (e.g. by typing the test's name, or even trying to use IIFEs), in case a test is defined but not called. In other words, defining the test in the right place should be enough to run it. That's why I've made an array of tests, and the name of their failing contract.
 
-// All tests pass if all true, else a test has failed.
-// There are 12 console.logs (roughly equals tests).
-
-// NOTE globals are for repl only, so can be changed back to consts if the repl is taken out (make a separate script for playing with the contract interactively).
-
-// TODO show that each test also fails with a broken implementation (Y_fails_tests.sol) (mutation testing)
+// NOTE globals are for repl only, so can be changed back to consts if the repl is taken out (TODO make a separate script for playing with the contract interactively).
 
 // TODO show that if money leaves the payer it has to go to the payee and donee. E.g. it cannot get stuck in the contract.
 // ensure that payable functions have this property
@@ -17,201 +12,336 @@ web3.setProvider(new web3.providers.HttpProvider("http://localhost:8545"));
 const fs = require("fs");
 const solc = require("solc");
 const BigNumber = require("bignumber.js");
+const flatten = require("lodash.flatten");
 
 // const y = require("./Y").Y(web3, process.argv[2]);
 
-const runTests = async filepath => {
+// if payAndDonate fails to transfer to either donee or payee, neither should get Ether
+
+// donee.transfer() fails
+
+//   await (async () => {
+//     // deploy TransferToThisFails
+//     const compiled = solc.compile(
+//       fs.readFileSync("./TransferToThisFails.sol", "utf8")
+//     );
+//     const abi = compiled.contracts[":TransferToThisFails"].interface;
+//     const bytecode = compiled.contracts[":TransferToThisFails"].bytecode;
+//
+//     const failer = await new web3.eth.Contract(JSON.parse(abi))
+//       .deploy({
+//         data: bytecode
+//       })
+//       .send({
+//         from: donee,
+//         gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
+//       });
+//
+//     const balancesBefore = await Promise.all([
+//       web3.eth.getBalance(payee),
+//       web3.eth.getBalance(donee)
+//     ]);
+//     const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
+//     const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
+//
+//     try {
+//       await contract.methods.payAndDonate(failer.options.address).send({
+//         from: payer,
+//         value: payment
+//       });
+//       console.error("Should have thrown.");
+//     } catch (err) {
+//       console.log(true); // if it's the expected error
+//     }
+//
+//     const balancesAfter = await Promise.all([
+//       web3.eth.getBalance(payee),
+//       web3.eth.getBalance(donee)
+//     ]);
+//     const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
+//     const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
+//
+//     // expect payee and donee balances haven't changed
+//
+//     console.log(
+//       payeeBalanceAfter.equals(payeeBalanceBefore) &&
+//         doneeBalanceAfter.equals(doneeBalanceBefore)
+//     );
+//   })();
+//
+//   // TODO payee.transfer() fails. It's not possible for a normal account to fail, assuming sending contract has enough ether (https://gitter.im/ethereum/solidity?at=59dfa10fe44c43700a259964), so payee will have to be a contract to test this.
+//
+//   await (async () => {
+//     // deploy ContractThatDeploysY
+//
+//     const compiled = solc.compile({
+//       sources: {
+//         "Y.sol": fs.readFileSync("../Y.sol", "utf8"),
+//         "ContractThatDeploysY.sol": fs.readFileSync(
+//           "./ContractThatDeploysY.sol",
+//           "utf8"
+//         )
+//       }
+//     });
+//
+//     const deployer_abi =
+//       compiled.contracts["ContractThatDeploysY.sol:ContractThatDeploysY"]
+//         .interface;
+//     const bytecode =
+//       compiled.contracts["ContractThatDeploysY.sol:ContractThatDeploysY"]
+//         .bytecode;
+//
+//     const yDeployer = await new web3.eth.Contract(JSON.parse(deployer_abi))
+//       .deploy({
+//         data: bytecode
+//       })
+//       .send({
+//         from: payee,
+//         gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
+//       });
+//
+//     // get address of deployed Y from yDeployer
+//
+//     const deployedYAddress = await yDeployer.methods.y().call();
+//
+//     const y = await new web3.eth.Contract(JSON.parse(abi), deployedYAddress); // NOTE Y abi, hopefully
+//
+//     const balancesBefore = await Promise.all([
+//       web3.eth.getBalance(payee),
+//       web3.eth.getBalance(donee)
+//     ]);
+//     const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
+//     const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
+//
+//     // TODO write a function that returns a promise of a contract, to avoid naming conflicts (abi and deployed_abi) when two contracts are in the same scope, like here.
+//
+//     try {
+//       await y.methods.payAndDonate(donee).send({
+//         from: payer,
+//         value: payment
+//       });
+//       console.error("Should have thrown.");
+//     } catch (err) {
+//       console.log(true); // if it's the expected error
+//     }
+//
+//     const balancesAfter = await Promise.all([
+//       web3.eth.getBalance(payee),
+//       web3.eth.getBalance(donee)
+//     ]);
+//     const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
+//     const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
+//
+//     console.log(
+//       payeeBalanceAfter.equals(payeeBalanceBefore) &&
+//         doneeBalanceAfter.equals(doneeBalanceBefore)
+//     );
+//   })();
+// };
+
+(async () => {
   const accounts = await web3.eth.getAccounts();
   const payer = accounts[1],
     payee = accounts[0],
     donee = accounts[9];
 
-  const compiled = solc.compile(fs.readFileSync(filepath, "utf8"));
-  const abi = compiled.contracts[":Y"].interface;
-  const bytecode = compiled.contracts[":Y"].bytecode;
+  const nonPayee = payer;
 
-  global.contract = await new web3.eth.Contract(JSON.parse(abi))
-    .deploy({
-      data: bytecode,
-      arguments: [1, 100]
-    })
-    .send({
-      from: payee,
-      gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
-    });
+  const randomNewNum = (oldNum, denom) => {
+    const x = Math.floor(Math.random() * denom); // x < denom, x is an integer
+    return x > 0 && x != oldNum ? x : randomNewNum(oldNum, denom);
+  }; // TODO check that num is valid
+  const randomNewDenom = (oldDenom, num) => {
+    const x = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER); // x < Number.MAX_SAFE_INTEGER, x is an integer. Number.MAX_SAFE_INTEGER < Solidity max. uint256
+    return x > num && x != oldDenom ? x : randomNewDenom(oldDenom, num);
+  };
 
-  // donee receives donation, payee receives payment minus donation
+  const contractsAndTests = [
+    // donee receives donation, payee receives payment minus donation
+    // donee: x, payee: y -> donee: x + (p * d), payee: y + (p - (p * d)), where p > 0, 0 < d < 100% (p is payment, d is donation percent)
 
-  // payee: x, donee: y -> payee: x + (p - (p * d)), donee: y + (p * d), where p > 0, 0 < d < 100% (p is payment, d is donation percent)
+    // p = 100, d = 1%
 
-  // p = 100, d = 1%
+    {
+      name: "Y_donee_doesnt_receive_donation.sol",
+      tests: [
+        async contract => {
+          const payment = 100;
 
-  const payment = 100;
+          const numAndDenom = await Promise.all([
+            contract.methods.num().call(),
+            contract.methods.denom().call()
+          ]);
+          const donation = new BigNumber(numAndDenom[0]) // contract.methods.num().call() is returning a string, not a BigNumber (web3 v0 returned a BigNumber). Is that right?
+            .dividedBy(numAndDenom[1])
+            .times(payment);
+          const balancesBefore = await Promise.all([
+            web3.eth.getBalance(payee),
+            web3.eth.getBalance(donee)
+          ]);
+          const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
+          const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
 
-  await (async () => {
-    const numAndDenom = await Promise.all([
-      contract.methods.num().call(),
-      contract.methods.denom().call()
-    ]);
-    const donation = new BigNumber(numAndDenom[0]) // contract.methods.num().call() is returning a string, not a BigNumber (web3 v0 returned a BigNumber). Is that right?
-      .dividedBy(numAndDenom[1])
-      .times(payment);
-    const balancesBefore = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
-    const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
+          await contract.methods
+            .payAndDonate(donee)
+            .send({ from: payer, value: payment });
 
-    await contract.methods
-      .payAndDonate(donee)
-      .send({ from: payer, value: payment });
+          const balancesAfter = await Promise.all([
+            web3.eth.getBalance(payee),
+            web3.eth.getBalance(donee)
+          ]);
+          const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
+          const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
 
-    const balancesAfter = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
-    const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
+          return {
+            test:
+              "donee receives donation, payee receives payment minus donation",
+            result:
+              payeeBalanceAfter.equals(
+                payeeBalanceBefore.plus(payment).minus(donation)
+              ) && doneeBalanceAfter.equals(doneeBalanceBefore.plus(donation))
+          };
+        }
+      ]
+    },
 
-    console.log(
-      payeeBalanceAfter.equals(
-        payeeBalanceBefore.plus(payment).minus(donation)
-      ) && doneeBalanceAfter.equals(doneeBalanceBefore.plus(donation))
-    );
-  })();
+    // p = 1, d = 50%: Tests like this have to be caught by Y.js until Solidity can handle them. If it fails here (which it will while Solidity can't represent decimals, e.g. 0.5), then test that Y.js can handle this (call to Y.js's tests).
 
-  // Non-payees can't change num or denom
+    // p = 100, d = 7.9%
+    // p = 2^256 - 1, d = 8% (num: 2, denom: 25)
 
-  // num
+    // p > 0
 
-  await (async () => {
-    const numBefore = await contract.methods.num().call();
-    try {
-      await contract.methods.changeNum(99).send({ from: payer });
-      // console.error("Should have thrown.");
-    } catch (err) {
-      // console.log(true); // FIXME if it's the expected error
-    }
+    // Non-payees can't change num or denom:
 
-    const numAfter = await contract.methods.num().call();
+    {
+      name: "Y_nonpayee_can_change_percent.sol",
+      tests: [
+        // num:
 
-    console.log(new BigNumber(numBefore).equals(numAfter)); // This is logging true even when calling broken Y. That's because changeNum in broken Y does nothing, so even calling it successfully won't change num, therefore num before and after will be equal.
+        async contract => {
+          const numBefore = await contract.methods.num().call();
+          const newNum = randomNewNum(
+            numBefore,
+            await contract.methods.denom().call()
+          );
 
-    // The application cares that num doesn't change if the wrong person calls to change it, not about the error. But it won't fail
-  })();
+          try {
+            await contract.methods.changeNum(newNum).send({ from: nonPayee }); // Non-payee tries to change num...
+          } catch (err) {}
 
-  // NOTE Subsequent tests will only be accurate if previous ones don't fail, so if tests are broken, fix the first broken one first.
+          return {
+            test: "non-payee can't change num",
+            result: new BigNumber(await contract.methods.num().call()).equals(
+              numBefore
+            )
+          }; // ... but num after equals num before.
+        },
 
-  // denom
+        // denom:
 
-  await (async () => {
-    const denomBefore = await contract.methods.denom().call();
-    try {
-      await contract.methods.changeDenom(1).send({ from: payer });
-      // console.error("Should have thrown.");
-    } catch (err) {
-      // console.log(true); // if it's the expected error
-    }
+        async contract => {
+          const denomBefore = await contract.methods.denom().call();
+          try {
+            await contract.methods
+              .changeDenom(
+                randomNewDenom(denomBefore, await contract.methods.num().call())
+              )
+              .send({ from: nonPayee }); // Non-payee tries to change denom...
+          } catch (err) {}
 
-    const denomAfter = await contract.methods.denom().call();
+          return {
+            test: "non-payee can't change denom",
+            result: new BigNumber(await contract.methods.denom().call()).equals(
+              denomBefore
+            )
+          }; // ... but denom after equals denom before.
+        },
 
-    console.log(new BigNumber(denomBefore).equals(denomAfter));
-  })();
+        // num and denom:
 
-  // num and denom
+        async contract => {
+          const numAndDenomBefore = await Promise.all([
+            contract.methods.num().call(),
+            contract.methods.denom().call()
+          ]);
+          const numBefore = numAndDenomBefore[0],
+            denomBefore = numAndDenomBefore[1];
 
-  await (async () => {
-    const numAndDenomBefore = await Promise.all([
-      contract.methods.num().call(),
-      contract.methods.denom().call()
-    ]);
-    const numBefore = numAndDenomBefore[0],
-      denomBefore = numAndDenomBefore[1];
+          try {
+            await contract.methods
+              .changeNumAndDenom(999, 1000)
+              .send({ from: nonPayee }); // Non-payee tries to change num and denom...
+          } catch (err) {}
 
-    try {
-      await contract.methods.changeNumAndDenom(999, 1000).send({ from: payer });
-      // console.error("Should have thrown.");
-    } catch (err) {
-      // console.log(true); // if it's the expected error
-    }
+          const numAndDenomAfter = await Promise.all([
+            contract.methods.num().call(),
+            contract.methods.denom().call()
+          ]);
 
-    const numAndDenomAfter = await Promise.all([
-      contract.methods.num().call(),
-      contract.methods.denom().call()
-    ]);
+          const numAfter = numAndDenomAfter[0],
+            denomAfter = numAndDenomAfter[1];
 
-    const numAfter = numAndDenomAfter[0],
-      denomAfter = numAndDenomAfter[1];
+          return {
+            test: "non-payee can't change num and denom",
+            result:
+              new BigNumber(numAfter).equals(numBefore) &&
+              new BigNumber(denomAfter).equals(denomBefore)
+          }; // ... but num and denom after equal num and denom before.
+        }
+      ]
+    },
+    {
+      name: "Y_cant_change_percent.sol",
+      tests: [
+        // Payee can change num and denom
 
-    console.log(
-      new BigNumber(numBefore).equals(numAfter) &&
-        new BigNumber(denomBefore).equals(denomAfter)
-    );
-  })();
+        // num
+        async contract => {
+          const changeNumTo = randomNewNum(
+            await contract.methods.num().call(),
+            await contract.methods.denom().call()
+          ); // FIXME cache this for this set of tests.
 
-  // Payee can change num and denom.
+          await contract.methods.changeNum(changeNumTo).send({ from: payee });
 
-  await (async () => {
-    const compiled = solc.compile(
-      fs.readFileSync("./Y_cant_change_percent.sol", "utf8")
-    );
-    const abi = compiled.contracts[":Y"].interface;
-    const bytecode = compiled.contracts[":Y"].bytecode;
+          const numAfter = await contract.methods.num().call();
 
-    const contract = await new web3.eth.Contract(JSON.parse(abi))
-      .deploy({
-        data: bytecode,
-        arguments: [1, 100]
-      })
-      .send({
-        from: payee,
-        gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
-      });
+          return {
+            test: "payee can change num",
+            result: new BigNumber(numAfter).equals(changeNumTo)
+          };
+        },
 
-    await (async numBefore => {
-      // 2/5 is 40%
-      const changeNumTo = "5";
+        // denom
+        async contract => {
+          const changeDenomTo = randomNewDenom(
+            await contract.methods.denom().call(),
+            await contract.methods.num().call()
+          );
 
-      if (changeNumTo !== numBefore) {
-        await contract.methods.changeNum(changeNumTo).send({ from: payee });
+          await contract.methods
+            .changeDenom(changeDenomTo)
+            .send({ from: payee });
 
-        const numAfter = await contract.methods.num().call();
+          const denomAfter = await contract.methods.denom().call();
 
-        // This test is true when it should be false. That's because it was calling the contract that had num = _num in it, so the num was changed. It needs to call a contract without that (Y_cant_change_percent.sol). Best to run these three tests in their own context, where contract is Y_cant_change_percent.sol.
+          return {
+            test: "payee can change denom",
+            result: new BigNumber(denomAfter).equals(changeDenomTo)
+          };
+        },
 
-        console.log(new BigNumber(numAfter).equals(changeNumTo));
-      } else {
-        console.error("changeNumTo === numBefore");
-      }
-    })("100"); // pass num read from contract
+        // num and denom
+        async contract => {
+          const denomNow = await contract.methods.denom().call();
 
-    // denom (3/100 -> 3/5)
+          const changeNumTo = randomNewNum(
+            await contract.methods.num().call(),
+            denomNow
+          );
+          const changeDenomTo = randomNewDenom(denomNow, changeNumTo);
 
-    await (async denomBefore => {
-      // 3/5 is 60%
-      const changeDenomTo = "5";
-
-      if (changeDenomTo !== denomBefore) {
-        await contract.methods.changeDenom(changeDenomTo).send({ from: payee });
-
-        const denomAfter = await contract.methods.denom().call();
-
-        console.log(new BigNumber(denomAfter).equals(changeDenomTo));
-      } else {
-        console.error("changeDenomTo === denomBefore");
-      }
-    })("100"); // pass denom read from contract
-
-    // num and denom (3/5 to 2/25)
-
-    await (async (numBefore, denomBefore) => {
-      // 2/25 is 8%
-      const changeNumTo = "2";
-      const changeDenomTo = "25";
-
-      if (changeNumTo !== numBefore) {
-        if (changeDenomTo !== denomBefore) {
           await contract.methods
             .changeNumAndDenom(changeNumTo, changeDenomTo)
             .send({ from: payee });
@@ -224,192 +354,78 @@ const runTests = async filepath => {
           const numAfter = numAndDenomAfter[0],
             denomAfter = numAndDenomAfter[1];
 
-          console.log(
-            new BigNumber(numAfter).equals(changeNumTo) &&
+          return {
+            test: "payee can change num and denom",
+            result:
+              new BigNumber(numAfter).equals(changeNumTo) &&
               new BigNumber(denomAfter).equals(changeDenomTo)
-          );
-        } else {
-          console.error("changeDenomTo === denomBefore");
+          };
         }
-      } else {
-        console.error("changeNumTo === numBefore");
-      }
-    })("1", "100"); // pass num and denom read from contract
-  })();
-
-  // num (1/100 -> 3/100)
-
-  // if payAndDonate fails to transfer to either donee or payee, neither should get Ether
-
-  // donee.transfer() fails
-
-  await (async () => {
-    // deploy TransferToThisFails
-    const compiled = solc.compile(
-      fs.readFileSync("./TransferToThisFails.sol", "utf8")
-    );
-    const abi = compiled.contracts[":TransferToThisFails"].interface;
-    const bytecode = compiled.contracts[":TransferToThisFails"].bytecode;
-
-    const failer = await new web3.eth.Contract(JSON.parse(abi))
-      .deploy({
-        data: bytecode
-      })
-      .send({
-        from: donee,
-        gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
-      });
-
-    const balancesBefore = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
-    const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
-
-    try {
-      await contract.methods.payAndDonate(failer.options.address).send({
-        from: payer,
-        value: payment
-      });
-      console.error("Should have thrown.");
-    } catch (err) {
-      console.log(true); // if it's the expected error
+      ]
     }
+  ];
 
-    const balancesAfter = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
-    const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
+  const compileThenDeploy = (filepath, contractName) => {
+    const compiled = solc.compile(fs.readFileSync(filepath, "utf8"));
+    const abi = compiled.contracts[":" + contractName].interface;
+    const bytecode = compiled.contracts[":" + contractName].bytecode;
+    return async () =>
+      await new web3.eth.Contract(JSON.parse(abi))
+        .deploy({
+          data: bytecode,
+          arguments: [1, 100]
+        })
+        .send({
+          from: payee,
+          gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
+        });
+  };
 
-    // expect payee and donee balances haven't changed
+  // test that every test can fail ("test the tests")
+  // Mutation testing shows that each test can fail. Run test against broken code. [{name, tests}]
 
-    console.log(
-      payeeBalanceAfter.equals(payeeBalanceBefore) &&
-        doneeBalanceAfter.equals(doneeBalanceBefore)
-    );
-  })();
+  const results = await Promise.all(
+    contractsAndTests.map(async contract => {
+      const contractForTest = await compileThenDeploy(
+        "./" + contract.name,
+        "Y"
+      )();
+      return await Promise.all(
+        contract.tests.map(async test => await test(contractForTest))
+      );
+    })
+  );
+  const everyTestCanReturnFalse = flatten(results).every(
+    test => test.result === false
+  );
 
-  // TODO payee.transfer() fails. It's not possible for a normal account to fail, assuming sending contract has enough ether (https://gitter.im/ethereum/solidity?at=59dfa10fe44c43700a259964), so payee will have to be a contract to test this.
+  console.log(
+    everyTestCanReturnFalse === true
+      ? "Every test can fail."
+      : "Not every test can fail (return false):",
+    everyTestCanReturnFalse === true ? "" : results
+  );
 
-  await (async () => {
-    // deploy ContractThatDeploysY
+  // test Y
 
-    const compiled = solc.compile({
-      sources: {
-        "Y.sol": fs.readFileSync("../Y.sol", "utf8"),
-        "ContractThatDeploysY.sol": fs.readFileSync(
-          "./ContractThatDeploysY.sol",
-          "utf8"
-        )
-      }
-    });
+  const contractForTest = compileThenDeploy("../Y.sol", "Y"); // Y
 
-    const deployer_abi =
-      compiled.contracts["ContractThatDeploysY.sol:ContractThatDeploysY"]
-        .interface;
-    const bytecode =
-      compiled.contracts["ContractThatDeploysY.sol:ContractThatDeploysY"]
-        .bytecode;
+  const tests = flatten(
+    contractsAndTests // [{name, tests},{name, tests}]
+      .map(contract => contract.tests) // [tests, tests]
+  ); // [tests]
 
-    const yDeployer = await new web3.eth.Contract(JSON.parse(deployer_abi))
-      .deploy({
-        data: bytecode
-      })
-      .send({
-        from: payee,
-        gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
-      });
+  const results2 = await Promise.all(
+    tests.map(async (test, index) => {
+      return await test(await contractForTest());
+    })
+  );
 
-    // get address of deployed Y from yDeployer
+  const everyTestResultIsTrue = results2.every(
+    result => result.result === true
+  );
 
-    const deployedYAddress = await yDeployer.methods.y().call();
-
-    const y = await new web3.eth.Contract(JSON.parse(abi), deployedYAddress); // NOTE Y abi, hopefully
-
-    const balancesBefore = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceBefore = new BigNumber(balancesBefore[0]);
-    const doneeBalanceBefore = new BigNumber(balancesBefore[1]);
-
-    // TODO write a function that returns a promise of a contract, to avoid naming conflicts (abi and deployed_abi) when two contracts are in the same scope, like here.
-
-    try {
-      await y.methods.payAndDonate(donee).send({
-        from: payer,
-        value: payment
-      });
-      console.error("Should have thrown.");
-    } catch (err) {
-      console.log(true); // if it's the expected error
-    }
-
-    const balancesAfter = await Promise.all([
-      web3.eth.getBalance(payee),
-      web3.eth.getBalance(donee)
-    ]);
-    const payeeBalanceAfter = new BigNumber(balancesAfter[0]);
-    const doneeBalanceAfter = new BigNumber(balancesAfter[1]);
-
-    console.log(
-      payeeBalanceAfter.equals(payeeBalanceBefore) &&
-        doneeBalanceAfter.equals(doneeBalanceBefore)
-    );
-  })();
-};
-
-(async () => {
-  await (async () => {
-    await runTests("./Y_should_fail_tests.sol");
-    console.log("end of false tests");
-    await runTests("../Y.sol"); // The problem now is that Y.sol doesn't run because the tests have the failing contracts defined as contract in their context. Each failing contract should have a list of tests associated with it. An important principle is not to invoke tests manually (e.g. by typing the test's name, or even trying to use IIFEs), in case a test is defined but not called. In other words, defining the test in the right place should be enough to run it.
-  })();
-
-  await (async () => {
-    const accounts = await web3.eth.getAccounts();
-    const payer = accounts[1],
-      payee = accounts[0],
-      donee = accounts[9];
-
-    console.log(
-      "end of old tests",
-      [
-        {
-          name: "Y_cant_change_percent.sol",
-          tests: [async () => {}, async () => {}]
-        },
-        { name: "Y_should_fail_tests.sol", tests: [async () => {}] }
-      ].map(async contract => {
-        const compiled = solc.compile(
-          fs.readFileSync("./" + contract.name, "utf8")
-        );
-        const abi = compiled.contracts[":Y"].interface;
-        const bytecode = compiled.contracts[":Y"].bytecode;
-        const contractForTest = await new web3.eth.Contract(JSON.parse(abi))
-          .deploy({
-            data: bytecode,
-            arguments: [1, 100]
-          })
-          .send({
-            from: payee,
-            gas: 1500000 // copied from https://web3js.readthedocs.io/en/1.0/web3-eth-contract.html#id11
-          });
-
-        return contract.tests.map(async test => await test(contractForTest));
-      })
-    );
-  })();
+  console.log(everyTestResultIsTrue ? "Every test passed." : results2);
+  // global.contract = contractForTest;
+  // require("repl").start();
 })();
-// then run all tests against Y.
-// require("repl").start();
-
-// p = 1, d = 50%: Tests like this have to be caught by Y.js until Solidity can handle them. If it fails here (which it will while Solidity can't represent decimals, e.g. 0.5), then test that Y.js can handle this (call to Y.js's tests).
-
-// p = 100, d = 7.9%
-// p = 2^256 - 1, d = 8% (num: 2, denom: 25)
-
-// p > 0
