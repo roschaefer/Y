@@ -12,6 +12,16 @@ Show your customers that your business gives back to society by donating part of
 
 Y is a [smart contract](https://en.wikipedia.org/wiki/Smart_contract). The payee tells Y how much of each payment to donate. A payer then tells Y who the donee will be, and sends money to Y. Y sends some of that money to the donee, and the rest to the payee.
 
+## Installation
+
+Make sure you have [npm](https://www.npmjs.com/) installed on your system. Then:
+
+```shell
+git clone https://github.com/willnwhite/Y.git
+cd Y
+npm install
+```
+
 ## Try it out (no money needed)
 
 Let's see that:
@@ -23,7 +33,6 @@ Please let me know if you want to go through this with me. I can help explain wh
 
 Okay, let's try Y out.
 
-1. `git clone` this repository, `cd` into it and type `npm install` to download what it depends on.
 
 1. Install a program that will run a miniature version of the Ethereum network on your computer, like [testrpc](https://github.com/ethereumjs/testrpc), and start it up.
 
