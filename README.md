@@ -2,6 +2,9 @@
 
 Show your customers that your business gives back to society by donating part of each payment to something of the customer's choice. Y is free to use.
 
+# Live demo
+Visit y-app at [http://y-demo.surge.sh/](http://y-demo.surge.sh/)
+
 ## How it works
 
     donee   payee
